@@ -18,7 +18,7 @@ import multer from 'multer';
 import bodyParser from 'body-parser';
 import { OpenAI } from 'openai';
 import Replicate from 'replicate';
-import axios from axios';
+import axios from 'axios';
 
 const app = express();
 const upload = multer();
