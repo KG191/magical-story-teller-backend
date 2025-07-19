@@ -4,8 +4,9 @@ import 'dotenv/config';
 // Node.js File polyfill for OpenAI library compatibility
 import { File } from 'node:buffer';
 if (!globalThis.File) {
-    globalThis.File = File;
-  }
+  globalThis.File = File;
+}
+
 // Debug environment variables for Railway
 console.log('🔍 Environment check:');
 console.log('NODE_ENV:', process.env.NODE_ENV);
@@ -320,7 +321,14 @@ Format your response as 5 separate paragraphs, each representing one frame of th
         }
       } catch (imageError) {
         console.error(`Error in image generation process for frame ${i+1}:`, imageError);
-        // Return fallback for this frame
+        
+        // Handle content policy violations specifically
+        if (imageError.code === 'content_policy_violation') {
+          console.warn(`⚠️ Content policy violation for frame ${i+1}, using safe fallback image`);
+          return { index: i, imageURL: `https://via.placeholder.com/1024x1024/87CEEB/FFFFFF?text=Story+Frame+${i+1}` };
+        }
+        
+        // Return fallback for any other error
         return { index: i, imageURL: `https://placehold.co/1024x1024/9C89B8/FFFFFF?text=Story+Scene+${i+1}` };
       }
     });
@@ -464,6 +472,17 @@ app.post('/api/generate-image', async (req, res) => {
     }
   } catch (error) {
     console.error('Image generation error:', error);
+    
+    // Handle content policy violations specifically
+    if (error.code === 'content_policy_violation') {
+      console.warn('⚠️ Content policy violation, returning safe fallback image');
+      return res.json({ 
+        imageUrl: 'https://via.placeholder.com/1024x1024/87CEEB/FFFFFF?text=Safe+Story+Image',
+        success: false,
+        message: 'Content filtered - using safe fallback image' 
+      });
+    }
+    
     res.status(500).json({ error: 'Failed to generate image' });
   }
 });
