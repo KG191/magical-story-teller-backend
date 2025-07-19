@@ -1,6 +1,11 @@
 // Load environment variables
 import 'dotenv/config';
 
+// Node.js File polyfill for OpenAI library compatibility
+import { File } from 'node:buffer';
+if (!globalThis.File) {
+    globalThis.File = File;
+  }
 // Debug environment variables for Railway
 console.log('🔍 Environment check:');
 console.log('NODE_ENV:', process.env.NODE_ENV);
