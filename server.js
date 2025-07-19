@@ -1,17 +1,29 @@
 // Load environment variables
 import 'dotenv/config';
+
+// Debug environment variables for Railway
+console.log('🔍 Environment check:');
+console.log('NODE_ENV:', process.env.NODE_ENV);
+console.log('PORT:', process.env.PORT);
+console.log('OPENAI_API_KEY:', process.env.OPENAI_API_KEY ? '✅ Set' : '❌ Missing');
+console.log('GOOGLE_APPLICATION_CREDENTIALS:', process.env.GOOGLE_APPLICATION_CREDENTIALS);
+
+// Check if Google Cloud credentials file exists
+import { existsSync } from 'fs';
+const googleCredsPath = process.env.GOOGLE_APPLICATION_CREDENTIALS || './whimzivoicetales-8cd3df15c0b4.json';
+console.log('Google Cloud credentials file exists:', existsSync(googleCredsPath) ? '✅ Found' : '❌ Missing');
 import express from 'express';
 import cors from 'cors';
 import multer from 'multer';
 import bodyParser from 'body-parser';
 import { OpenAI } from 'openai';
 import Replicate from 'replicate';
-import axios from 'axios';
+import axios from axios';
 
 const app = express();
 const upload = multer();
 
-// Initialize API clients
+//Initialise API clients
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
 });
