@@ -8,10 +8,21 @@ console.log('PORT:', process.env.PORT);
 console.log('OPENAI_API_KEY:', process.env.OPENAI_API_KEY ? '✅ Set' : '❌ Missing');
 console.log('GOOGLE_APPLICATION_CREDENTIALS:', process.env.GOOGLE_APPLICATION_CREDENTIALS);
 
-// Check if Google Cloud credentials file exists
-import { existsSync } from 'fs';
-const googleCredsPath = process.env.GOOGLE_APPLICATION_CREDENTIALS || './whimzivoicetales-8cd3df15c0b4.json';
-console.log('Google Cloud credentials file exists:', existsSync(googleCredsPath) ? '✅ Found' : '❌ Missing');
+// Check Google Cloud credentials configuration
+if (process.env.GOOGLE_CLOUD_CREDENTIALS_JSON) {
+  console.log('Google Cloud credentials: ✅ JSON environment variable found');
+  // Write JSON credentials to temporary file for Google Cloud client
+  import { writeFileSync } from 'fs';
+  const credentialsPath = '/tmp/google-credentials.json';
+  writeFileSync(credentialsPath, process.env.GOOGLE_CLOUD_CREDENTIALS_JSON);
+  process.env.GOOGLE_APPLICATION_CREDENTIALS = credentialsPath;
+} else if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+  console.log('Google Cloud credentials: ✅ File path configured');
+  import { existsSync } from 'fs';
+  console.log('Credentials file exists:', existsSync(process.env.GOOGLE_APPLICATION_CREDENTIALS) ? '✅ Found' : '❌ Missing');
+} else {
+  console.log('Google Cloud credentials: ❌ Not configured');
+}
 import express from 'express';
 import cors from 'cors';
 import multer from 'multer';
@@ -23,7 +34,7 @@ import axios from 'axios';
 const app = express();
 const upload = multer();
 
-//Initialise API clients
+// Initialize API clients
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
 });
@@ -982,14 +993,26 @@ function determineSceneType(text) {
 // Start the Express server for Railway deployment
 const PORT = process.env.PORT || 3001;
 
+// Add error handling for uncaught exceptions
+process.on('uncaughtException', (error) => {
+  console.error('💥 Uncaught Exception:', error);
+  // Don't exit immediately in production, let Railway handle restarts
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('💥 Unhandled Rejection at:', promise, 'reason:', reason);
+  // Don't exit immediately in production, let Railway handle restarts
+});
+
 try {
   const server = await app.listen(PORT, '0.0.0.0');
   console.log(`🚀 Magical Story Teller Backend listening on port ${PORT}`);
-  console.log(`🌟 Health check: http://localhost:${PORT}/api/health`);
-  console.log(`🔗 API Base URL: http://localhost:${PORT}/api`);
+  console.log(`🌟 Health check: http://0.0.0.0:${PORT}/api/health`);
+  console.log(`🔗 API Base URL: http://0.0.0.0:${PORT}/api`);
   
   // Railway health check endpoint logging
   console.log(`✅ Railway deployment ready - health endpoint active`);
+  console.log(`🌍 Server accessible from all interfaces (0.0.0.0:${PORT})`);
   
   // Graceful shutdown handling for Railway
   process.on('SIGTERM', () => {
@@ -1011,7 +1034,13 @@ try {
   server.on('close', () => {
     console.log('🔚 Magical Story Teller Backend has stopped');
   });
+
+  server.on('error', (error) => {
+    console.error('❌ Server error:', error);
+  });
+
 } catch (err) {
   console.error('❌ Failed to start Magical Story Teller Backend:', err);
+  console.error('Stack trace:', err.stack);
   process.exit(1);
 }
