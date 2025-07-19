@@ -9,19 +9,25 @@ console.log('OPENAI_API_KEY:', process.env.OPENAI_API_KEY ? '✅ Set' : '❌ Mis
 console.log('GOOGLE_APPLICATION_CREDENTIALS:', process.env.GOOGLE_APPLICATION_CREDENTIALS);
 
 // Check Google Cloud credentials configuration
-if (process.env.GOOGLE_CLOUD_CREDENTIALS_JSON) {
-  console.log('Google Cloud credentials: ✅ JSON environment variable found');
-  // Write JSON credentials to temporary file for Google Cloud client
-  import { writeFileSync } from 'fs';
-  const credentialsPath = '/tmp/google-credentials.json';
-  writeFileSync(credentialsPath, process.env.GOOGLE_CLOUD_CREDENTIALS_JSON);
-  process.env.GOOGLE_APPLICATION_CREDENTIALS = credentialsPath;
-} else if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
-  console.log('Google Cloud credentials: ✅ File path configured');
-  import { existsSync } from 'fs';
-  console.log('Credentials file exists:', existsSync(process.env.GOOGLE_APPLICATION_CREDENTIALS) ? '✅ Found' : '❌ Missing');
-} else {
-  console.log('Google Cloud credentials: ❌ Not configured');
+import { writeFileSync, existsSync } from 'fs';
+
+try {
+  if (process.env.GOOGLE_CLOUD_CREDENTIALS_JSON) {
+    console.log('Google Cloud credentials: ✅ JSON environment variable found');
+    // Write JSON credentials to temporary file for Google Cloud client
+    const credentialsPath = '/tmp/google-credentials.json';
+    writeFileSync(credentialsPath, process.env.GOOGLE_CLOUD_CREDENTIALS_JSON);
+    process.env.GOOGLE_APPLICATION_CREDENTIALS = credentialsPath;
+    console.log('Google Cloud credentials: ✅ JSON written to temporary file');
+  } else if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+    console.log('Google Cloud credentials: ✅ File path configured');
+    console.log('Credentials file exists:', existsSync(process.env.GOOGLE_APPLICATION_CREDENTIALS) ? '✅ Found' : '❌ Missing');
+  } else {
+    console.log('Google Cloud credentials: ❌ Not configured');
+  }
+} catch (error) {
+  console.error('❌ Error setting up Google Cloud credentials:', error.message);
+  // Continue without Google Cloud TTS - app can still work with other features
 }
 import express from 'express';
 import cors from 'cors';
@@ -30,6 +36,9 @@ import bodyParser from 'body-parser';
 import { OpenAI } from 'openai';
 import Replicate from 'replicate';
 import axios from 'axios';
+import fs from 'fs';
+import path from 'path';
+import { TextToSpeechClient } from '@google-cloud/text-to-speech';
 
 const app = express();
 const upload = multer();
@@ -108,8 +117,6 @@ app.post('/api/transcribe', upload.single('audio'), async (req, res) => {
       const startTime = Date.now();
       
       // Create a file object from the buffer
-      const fs = await import('fs');
-      const path = await import('path');
       
       // Create temp directory if it doesn't exist
       const tempDir = path.resolve('./temp');
@@ -466,12 +473,7 @@ app.post('/api/tts', async (req, res) => {
       return res.status(400).json({ error: 'Text is required for TTS' });
     }
 
-    // Use the pre-imported TextToSpeechClient from the top of the file
-    // The Google Cloud TTS client should be initialized at the top of the file
-    // We'll use dynamic import for ES modules compatibility
-    const { TextToSpeechClient } = await import('@google-cloud/text-to-speech');
-    
-    // Create a client
+    // Create a client using pre-imported TextToSpeechClient
     const client = new TextToSpeechClient();
     
     // Normalize language code to match voice requirements
