@@ -1,0 +1,36 @@
+{
+  "name": "whimzi-voice-tales-backend",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Backend API for Magical Story Teller iOS app",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "build": "echo 'No build step required for Node.js server'",
+    "dev": "node server.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "@google-cloud/text-to-speech": "^6.2.0",
+    "axios": "^1.9.0",
+    "body-parser": "^2.2.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.5.0",
+    "express": "^5.1.0",
+    "multer": "^2.0.1",
+    "openai": "^5.3.0",
+    "replicate": "^1.0.1"
+  },
+  "keywords": [
+    "node.js",
+    "express",
+    "api",
+    "openai",
+    "tts",
+    "story-generation"
+  ],
+  "author": "Kiran Gokal",
+  "license": "MIT"
+}

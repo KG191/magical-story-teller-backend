@@ -1,0 +1,13 @@
+{
+  "type": "service_account",
+  "project_id": "whimzivoicetales",
+  "private_key_id": "8cd3df15c0b4c2f7ce842c1d4deefa3af873c66e",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQCf93+YMtYTDWvq\nmdFT3w9cBBO8FW3lSD7oQGyeoPd6lwxYVNz3FVgTzwIxP08Lruj39U6iyZ04hcp7\n+ojf0oOQhPj6DOSR30jVRGs0BrPVECEexXV+1ghjllMzQxPMRVEEs4nWbyDpu46T\nyUWaFOybJ6lmlEe+r2WmUfG6GLL1LQ8n28++NTmwPPqjy9JE6fvma/ZgPj5SW1h2\n2j2R2eF8ZAn4r8C5ECV6EKG3unTnlaSHFuFV11rbWwq/fxnKaEKg5RzL6gbD8V3I\nU/4FF7RA7BXgkauievTRDF8BPOyyfX8tVqsla39rgg1KSix9v9oTh2/Rq+cLbo/Z\nA8y22e8fAgMBAAECggEACdTwZq5ZMfqVM2oYz4raKtGlVN4MTxdNpoCvLGDAVSyL\nebJdkmIhc7Y5cEVv2kv5zaOqHZ8+poayl0QivX72zx8dHmFEeyK6G0GFRUFUNDg1\nkOqZ+h21jkli+7eXs+pevGc8hY12/GamsLaiLII0uKSLaN6cOkAVg09uB/4UobT2\nY/iMFE2BvNaowjN4QKXaInIokpTQyBpmQdngXShtdcb0lGJA3GAuCm9t8xpdTSK9\nfNkwDyqutP9GDXshQaf5rcADKsy39jPt1BElSlCLypsQ1bcvPFTZQkB/3BvDo5BV\n4CWgZn6iRAMSQqDWBalqdDKKV+86AW1kN0Lk7dFbAQKBgQDOmYO1ghlMSWDGJRzu\nnO5Y5WH7RecywBYsMDLip4TsA8uVw6HnmqrQNUjTV6UK6908Bugf3er1oJZe0gt+\nPyFiFnQVlms3MrZeoEGCGzK1rZfQ7oWeH9RDQZuutzRQ0dm0jBk2wmt02xdAgq1C\nInRsl9+wgWzt0FgOE/o9GwrMfwKBgQDGN3fgeQVtICli9mgPX+ehdbUiNLDTVIvz\nUI9RUPyT9uqr7GvUoUDTczWa3KG3zndqTnCKiMgtUkjtNtidBPhdgfHcESYqpZM1\nj1nVbv1ECBbIlQBMVWUA7ytoDUyAduK/KMVtg9shh7BP2Xc/3sMofJvkRbkhWyhz\nvv4b5KANYQKBgDAdgpYgIYIpyLb857sOo1fivCoIAqtIHyHVa9RrjUJmM+DCOg+1\nbrik4DwQOmjLu6+CMEdTqKfh6YNVycVyMHUmo4xvhrLJRb3N9tO1P98d+bB4DHhi\nE05Cll5fXnjAFsK8qhaduubxK34jsPQpEBJGYJs72UGddxR4RJw8kwxDAoGBAIaK\nt+/BtZEwt2bY4iEtc8gAYYZqRWvsg2IQWHdVhVvZycgQndCh86KTHNuUzqA4oI2j\n2HfwCA/bPmzlQXqzGPI/da9uZH2mDZnZR5y7zWUUKILVwHIPtJNBxDDIdhjsmVQv\nlHKVgXPs6hwI/Ax6Y/VjP11ehh7CBV8rUMgWEx2BAoGAJWWKcMCPNAtAqfXxXfWV\n6j4lm98YQip4z/wp4GOHbMYlv8U4/+5sqikn5WoAGdmbjCvuR2s39BwWicWTMG6y\nGlNPPhycYnnPLrlZCNT0kZ15R2gphzWBMldTTZl2h9JudXIFgFD5cpMzBnc5gwA5\nOLKNDuHLIc15Jf8NSxWTrJg=\n-----END PRIVATE KEY-----\n",
+  "client_email": "whimzivoicetales@whimzivoicetales.iam.gserviceaccount.com",
+  "client_id": "103241738136497794565",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/whimzivoicetales%40whimzivoicetales.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}
