@@ -103,10 +103,30 @@ app.get('/deployment-test', (req, res) => {
   });
 });
 
+// Direct August 2025 Privacy Policy endpoint
+app.get('/privacy-policy-august-2025', (req, res) => {
+  console.log('📋 August 2025 privacy policy directly requested at:', new Date().toISOString());
+  
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  
+  const filePath = path.join(process.cwd(), 'privacy-policy-august-2025.html');
+  res.sendFile(filePath, (err) => {
+    if (err) {
+      console.error('❌ Error serving direct August 2025 privacy policy:', err);
+      res.status(500).send('August 2025 privacy policy temporarily unavailable');
+    } else {
+      console.log('✅ Direct August 2025 privacy policy served successfully');
+    }
+  });
+});
+
 // Debug endpoint to check privacy policy file content
 app.get('/debug-privacy', (req, res) => {
   try {
-    const filePath = path.join(process.cwd(), 'privacy-policy.html');
+    const filePath = path.join(process.cwd(), 'privacy-policy-august-2025.html');
     const content = fs.readFileSync(filePath, 'utf8');
     
     // Extract key indicators
