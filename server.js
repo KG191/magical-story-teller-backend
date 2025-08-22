@@ -69,7 +69,7 @@ app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok' });
 });
 
-// Privacy Policy endpoint - serves the static HTML file with cache busting
+// Privacy Policy endpoint - serves the August 2025 version
 app.get('/privacy-policy', (req, res) => {
   console.log('📋 Privacy policy requested at:', new Date().toISOString());
   
@@ -79,14 +79,16 @@ app.get('/privacy-policy', (req, res) => {
   res.setHeader('Expires', '0');
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
   
-  // Send the file
-  const filePath = path.join(process.cwd(), 'privacy-policy.html');
+  // Send the August 2025 version specifically
+  const filePath = path.join(process.cwd(), 'privacy-policy-august-2025.html');
   res.sendFile(filePath, (err) => {
     if (err) {
-      console.error('❌ Error serving privacy policy:', err);
-      res.status(500).send('Privacy policy temporarily unavailable');
+      console.error('❌ Error serving August 2025 privacy policy:', err);
+      // Fallback to original file
+      const fallbackPath = path.join(process.cwd(), 'privacy-policy.html');
+      res.sendFile(fallbackPath);
     } else {
-      console.log('✅ Privacy policy served successfully (August 2025 version)');
+      console.log('✅ August 2025 privacy policy served successfully');
     }
   });
 });
