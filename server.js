@@ -69,28 +69,32 @@ app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok' });
 });
 
-// Privacy Policy endpoint - serves the August 2025 version
+// Privacy Policy endpoint - serves the August 2025 version with timestamp cache busting
 app.get('/privacy-policy', (req, res) => {
   console.log('📋 Privacy policy requested at:', new Date().toISOString());
   
-  // Set headers to prevent caching and ensure fresh content
-  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  // Strong cache busting headers
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate, max-age=0');
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
+  res.setHeader('Last-Modified', new Date().toUTCString());
+  res.setHeader('ETag', Date.now().toString());
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
   
-  // Send the August 2025 version specifically
-  const filePath = path.join(process.cwd(), 'privacy-policy-august-2025.html');
-  res.sendFile(filePath, (err) => {
-    if (err) {
-      console.error('❌ Error serving August 2025 privacy policy:', err);
-      // Fallback to original file
-      const fallbackPath = path.join(process.cwd(), 'privacy-policy.html');
-      res.sendFile(fallbackPath);
-    } else {
-      console.log('✅ August 2025 privacy policy served successfully');
+  try {
+    // Read and serve the August 2025 version directly
+    const content = fs.readFileSync(path.join(process.cwd(), 'privacy-policy-august-2025.html'), 'utf8');
+    res.send(content);
+    console.log('✅ August 2025 privacy policy served with timestamp:', Date.now());
+  } catch (err) {
+    console.error('❌ Error reading August 2025 privacy policy:', err);
+    try {
+      const fallbackContent = fs.readFileSync(path.join(process.cwd(), 'privacy-policy.html'), 'utf8');
+      res.send(fallbackContent);
+    } catch (fallbackErr) {
+      res.status(500).send('Privacy policy temporarily unavailable');
     }
-  });
+  }
 });
 
 // Test endpoint to verify deployment update
@@ -121,6 +125,11 @@ app.get('/privacy-policy-august-2025', (req, res) => {
       console.log('✅ Direct August 2025 privacy policy served successfully');
     }
   });
+});
+
+// Root route - redirect to privacy policy
+app.get('/', (req, res) => {
+  res.redirect('/privacy-policy');
 });
 
 // Debug endpoint to check privacy policy file content
