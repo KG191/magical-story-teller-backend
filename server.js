@@ -69,119 +69,9 @@ app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok' });
 });
 
-// Privacy Policy Route - Required for Apple App Store Kids category compliance
+// Privacy Policy endpoint - serves the static HTML file
 app.get('/privacy-policy', (req, res) => {
-  try {
-    // Read the HTML file
-    const privacyPolicyPath = path.join(process.cwd(), 'privacy-policy.html');
-    
-    // Check if file exists
-    if (fs.existsSync(privacyPolicyPath)) {
-      const privacyPolicyContent = fs.readFileSync(privacyPolicyPath, 'utf8');
-      
-      // Set proper headers
-      res.setHeader('Content-Type', 'text/html; charset=utf-8');
-      res.setHeader('Cache-Control', 'public, max-age=86400'); // Cache for 24 hours
-      
-      // Send the HTML content
-      res.send(privacyPolicyContent);
-      console.log('✅ Privacy policy served successfully');
-    } else {
-      // Fallback if HTML file not found - serve inline policy
-      console.warn('⚠️ privacy-policy.html not found, serving fallback policy');
-      res.setHeader('Content-Type', 'text/html; charset=utf-8');
-      res.send(`
-        <!DOCTYPE html>
-        <html lang="en">
-        <head>
-          <meta charset="UTF-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>Privacy Policy - Magical Story Teller</title>
-          <style>
-            body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; margin: 40px; line-height: 1.6; max-width: 800px; margin: 0 auto; padding: 20px; }
-            h1 { color: #6366f1; border-bottom: 3px solid #6366f1; padding-bottom: 10px; }
-            .highlight { background: #fef3c7; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #f59e0b; }
-            .contact { background: #ecfdf5; padding: 20px; border-radius: 8px; border-left: 4px solid #10b981; margin: 20px 0; }
-          </style>
-        </head>
-        <body>
-          <h1>🌟 Privacy Policy - Magical Story Teller</h1>
-          <div class="highlight">
-            <strong>Last Updated:</strong> August 5, 2025<br>
-            <strong>COPPA Compliance:</strong> Fully compliant with children's privacy laws
-          </div>
-          <h2>📱 About Our App</h2>
-          <p>Magical Story Teller transforms your child's voice into personalized stories with cultural animations in 40+ languages.</p>
-          
-          <h2>🔒 Data We Collect</h2>
-          <h3>Voice Recordings (Temporary)</h3>
-          <ul>
-            <li><strong>Purpose:</strong> Generate personalized stories using AI</li>
-            <li><strong>Storage:</strong> Processed immediately, deleted within 24 hours</li>
-            <li><strong>Access:</strong> Fully automated - no human access to recordings</li>
-          </ul>
-          
-          <h3>We DO NOT Collect</h3>
-          <ul>
-            <li>❌ Names, addresses, or contact information</li>
-            <li>❌ Photos or images of children</li>
-            <li>❌ Location data or GPS coordinates</li>
-            <li>❌ Device contacts or personal files</li>
-            <li>❌ Permanent voice recordings</li>
-          </ul>
-          
-          <h2>🤖 Third-Party Services</h2>
-          <ul>
-            <li><strong>Google Cloud TTS:</strong> Story text only (no personal data)</li>
-            <li><strong>OpenAI API:</strong> Anonymous text transcripts only</li>
-            <li><strong>Railway:</strong> Secure hosting infrastructure</li>
-          </ul>
-          
-          <div class="highlight">
-            <strong>No Analytics:</strong> We do NOT use Google Analytics, Facebook Pixel, or tracking services.<br>
-            <strong>No Advertising:</strong> Zero ads, promotional content, or third-party advertising.
-          </div>
-          
-          <h2>🛡️ Security</h2>
-          <ul>
-            <li>All data encrypted with TLS/SSL</li>
-            <li>Enterprise-grade cloud infrastructure</li>
-            <li>Automatic data deletion within 24 hours</li>
-            <li>COPPA compliant for children under 13</li>
-          </ul>
-          
-          <h2>👨‍👩‍👧‍👦 Parental Rights</h2>
-          <p>Parents can request data review, deletion, or contact us with privacy concerns at any time.</p>
-          
-          <div class="contact">
-            <h3>Contact Us</h3>
-            <p><strong>Privacy Questions:</strong> privacy@magicalstoryteller.app</p>
-            <p><strong>Response Time:</strong> Within 48 hours</p>
-            <p><strong>Data Requests:</strong> Processed within 30 days</p>
-          </div>
-          
-          <hr style="margin: 40px 0;">
-          <p style="text-align: center; color: #666;">
-            <strong>Magical Story Teller</strong> • Privacy-First AI Storytelling for Kids<br>
-            Last Updated: August 5, 2025 • COPPA Compliant
-          </p>
-        </body>
-        </html>
-      `);
-    }
-  } catch (error) {
-    console.error('❌ Error serving privacy policy:', error);
-    res.status(500).setHeader('Content-Type', 'text/html; charset=utf-8').send(`
-      <html>
-        <body style="font-family: Arial, sans-serif; padding: 40px; text-align: center;">
-          <h1>🌟 Privacy Policy</h1>
-          <p>Privacy policy temporarily unavailable.</p>
-          <p>Please contact: <strong>privacy@magicalstoryteller.app</strong></p>
-          <p><em>We prioritize your child's privacy and will respond within 48 hours.</em></p>
-        </body>
-      </html>
-    `);
-  }
+  res.sendFile(path.join(process.cwd(), 'privacy-policy.html'));
 });
 
 // Transcribe audio endpoint
@@ -330,7 +220,7 @@ app.post('/api/generate-story', async (req, res) => {
     const animationStyle = req.body?.animationStyle || 'Disney/Pixar 3D Animation';
     
     // Enhanced logging for multilingual parameters
-    console.log('🎬 STORY GENERATION REQUEST:');
+    console.log('📝 STORY GENERATION REQUEST:');
     console.log(`📋 Language: ${language}`);
     console.log(`🔊 TTS Voice: ${voiceName}`);
     console.log(`🎨 Animation Style: ${animationStyle}`);
@@ -1149,7 +1039,6 @@ try {
   const server = await app.listen(PORT, '0.0.0.0');
   console.log(`🚀 Magical Story Teller Backend listening on port ${PORT}`);
   console.log(`🌟 Health check: http://0.0.0.0:${PORT}/api/health`);
-  console.log(`🔒 Privacy policy: http://0.0.0.0:${PORT}/privacy-policy`);
   console.log(`🔗 API Base URL: http://0.0.0.0:${PORT}/api`);
   
   // Railway health check endpoint logging
