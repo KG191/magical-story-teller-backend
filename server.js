@@ -69,10 +69,26 @@ app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok' });
 });
 
-// Privacy Policy endpoint - serves the static HTML file
+// Privacy Policy endpoint - serves the static HTML file with cache busting
 app.get('/privacy-policy', (req, res) => {
   console.log('📋 Privacy policy requested at:', new Date().toISOString());
-  res.sendFile(path.join(process.cwd(), 'privacy-policy.html'));
+  
+  // Set headers to prevent caching and ensure fresh content
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  
+  // Send the file
+  const filePath = path.join(process.cwd(), 'privacy-policy.html');
+  res.sendFile(filePath, (err) => {
+    if (err) {
+      console.error('❌ Error serving privacy policy:', err);
+      res.status(500).send('Privacy policy temporarily unavailable');
+    } else {
+      console.log('✅ Privacy policy served successfully (August 2025 version)');
+    }
+  });
 });
 
 // Test endpoint to verify deployment update
@@ -83,6 +99,32 @@ app.get('/deployment-test', (req, res) => {
     timestamp: new Date().toISOString(),
     privacyPolicyUpdated: true
   });
+});
+
+// Debug endpoint to check privacy policy file content
+app.get('/debug-privacy', (req, res) => {
+  try {
+    const filePath = path.join(process.cwd(), 'privacy-policy.html');
+    const content = fs.readFileSync(filePath, 'utf8');
+    
+    // Extract key indicators
+    const isAugust2025 = content.includes('Last Updated: August 2025');
+    const hasAccountFree = content.includes('Account-Free Design');
+    const hasEnhancedSecurity = content.includes('Enhanced Security (August 2025)');
+    
+    res.json({
+      fileExists: fs.existsSync(filePath),
+      filePath: filePath,
+      isAugust2025Version: isAugust2025,
+      hasAccountFreeDesign: hasAccountFree,
+      hasEnhancedSecurity: hasEnhancedSecurity,
+      contentLength: content.length,
+      firstChars: content.substring(0, 200),
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
 // Transcribe audio endpoint
