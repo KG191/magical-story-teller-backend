@@ -71,7 +71,18 @@ app.get('/health', (req, res) => {
 
 // Privacy Policy endpoint - serves the static HTML file
 app.get('/privacy-policy', (req, res) => {
+  console.log('📋 Privacy policy requested at:', new Date().toISOString());
   res.sendFile(path.join(process.cwd(), 'privacy-policy.html'));
+});
+
+// Test endpoint to verify deployment update
+app.get('/deployment-test', (req, res) => {
+  res.json({ 
+    status: 'active',
+    version: 'August 2025',
+    timestamp: new Date().toISOString(),
+    privacyPolicyUpdated: true
+  });
 });
 
 // Transcribe audio endpoint
