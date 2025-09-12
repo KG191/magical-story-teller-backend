@@ -97,13 +97,37 @@ app.get('/privacy-policy', (req, res) => {
   }
 });
 
+// Support page endpoint - serves contact information for App Store requirements
+app.get('/support', (req, res) => {
+  console.log('🆘 Support page requested at:', new Date().toISOString());
+  
+  // Strong cache busting headers
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate, max-age=0');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  res.setHeader('Last-Modified', new Date().toUTCString());
+  res.setHeader('ETag', Date.now().toString());
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  
+  try {
+    // Read and serve the support page
+    const content = fs.readFileSync(path.join(process.cwd(), 'support.html'), 'utf8');
+    res.send(content);
+    console.log('✅ Support page served with timestamp:', Date.now());
+  } catch (err) {
+    console.error('❌ Error reading support page:', err);
+    res.status(500).send('Support page temporarily unavailable. Please contact kidzmagicalvoicetales@gmail.com directly.');
+  }
+});
+
 // Test endpoint to verify deployment update
 app.get('/deployment-test', (req, res) => {
   res.json({ 
     status: 'active',
-    version: 'August 2025',
+    version: 'September 2025',
     timestamp: new Date().toISOString(),
-    privacyPolicyUpdated: true
+    privacyPolicyUpdated: true,
+    supportPageAdded: true
   });
 });
 
