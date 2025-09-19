@@ -151,6 +151,27 @@ app.get('/privacy-policy-august-2025', (req, res) => {
   });
 });
 
+// Terms of Use endpoint - serves the EULA compliance document
+app.get('/terms-of-use', (req, res) => {
+  console.log('📋 Terms of Use requested at:', new Date().toISOString());
+
+  // Strong cache busting headers
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+
+  try {
+    // Read and serve the Terms of Use document
+    const content = fs.readFileSync(path.join(process.cwd(), 'terms-of-use.html'), 'utf8');
+    res.send(content);
+    console.log('✅ Terms of Use served with timestamp:', Date.now());
+  } catch (err) {
+    console.error('❌ Error reading Terms of Use:', err);
+    res.status(500).send('Terms of Use temporarily unavailable');
+  }
+});
+
 // Root route - redirect to privacy policy
 app.get('/', (req, res) => {
   res.redirect('/privacy-policy');
