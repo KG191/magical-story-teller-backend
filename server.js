@@ -69,31 +69,26 @@ app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok' });
 });
 
-// Privacy Policy endpoint - serves the August 2025 version with timestamp cache busting
+// Privacy Policy endpoint - serves the current September 2025 version
 app.get('/privacy-policy', (req, res) => {
   console.log('📋 Privacy policy requested at:', new Date().toISOString());
-  
+
   // Strong cache busting headers
-  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate, max-age=0');
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
   res.setHeader('Last-Modified', new Date().toUTCString());
   res.setHeader('ETag', Date.now().toString());
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
-  
+
   try {
-    // Read and serve the August 2025 version directly
-    const content = fs.readFileSync(path.join(process.cwd(), 'privacy-policy-august-2025.html'), 'utf8');
+    // Read and serve the current privacy policy with subscription information
+    const content = fs.readFileSync(path.join(process.cwd(), 'privacy-policy.html'), 'utf8');
     res.send(content);
-    console.log('✅ August 2025 privacy policy served with timestamp:', Date.now());
+    console.log('✅ Current privacy policy served with timestamp:', Date.now());
   } catch (err) {
-    console.error('❌ Error reading August 2025 privacy policy:', err);
-    try {
-      const fallbackContent = fs.readFileSync(path.join(process.cwd(), 'privacy-policy.html'), 'utf8');
-      res.send(fallbackContent);
-    } catch (fallbackErr) {
-      res.status(500).send('Privacy policy temporarily unavailable');
-    }
+    console.error('❌ Error reading privacy policy:', err);
+    res.status(500).send('Privacy policy temporarily unavailable');
   }
 });
 
