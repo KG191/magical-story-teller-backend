@@ -58,6 +58,78 @@ const replicate = new Replicate({
   auth: process.env.REPLICATE_API_TOKEN,
 });
 
+// MARK: - Request Queue for Rate Limit Management
+// This queue prevents hitting OpenAI's rate limits by processing requests sequentially
+// with awareness of the 3 requests/minute limit (Tier 1)
+class RequestQueue {
+  constructor(maxRequestsPerMinute = 3) {
+    this.queue = [];
+    this.processing = false;
+    this.maxRequestsPerMinute = maxRequestsPerMinute;
+    this.requestTimes = [];
+    console.log(`🔄 RequestQueue initialized with max ${maxRequestsPerMinute} requests/minute`);
+  }
+
+  async add(requestFn) {
+    return new Promise((resolve, reject) => {
+      this.queue.push({ requestFn, resolve, reject, timestamp: Date.now() });
+      console.log(`📥 Request added to queue. Queue length: ${this.queue.length}`);
+      this.processQueue();
+    });
+  }
+
+  async processQueue() {
+    if (this.processing || this.queue.length === 0) return;
+
+    this.processing = true;
+
+    // Clean old request times (older than 1 minute)
+    const oneMinuteAgo = Date.now() - 60000;
+    this.requestTimes = this.requestTimes.filter(time => time > oneMinuteAgo);
+
+    // Wait if we've hit rate limit
+    if (this.requestTimes.length >= this.maxRequestsPerMinute) {
+      const oldestRequest = this.requestTimes[0];
+      const waitTime = 60000 - (Date.now() - oldestRequest) + 100; // +100ms buffer
+      console.log(`⏳ Rate limit reached (${this.requestTimes.length}/${this.maxRequestsPerMinute}), waiting ${Math.ceil(waitTime/1000)}s before next request`);
+      await new Promise(resolve => setTimeout(resolve, waitTime));
+      this.requestTimes.shift(); // Remove oldest timestamp after waiting
+    }
+
+    // Process next request
+    const { requestFn, resolve, reject, timestamp } = this.queue.shift();
+    const waitedMs = Date.now() - timestamp;
+    console.log(`🚀 Processing request (waited ${Math.ceil(waitedMs/1000)}s in queue)`);
+    this.requestTimes.push(Date.now());
+
+    try {
+      const result = await requestFn();
+      resolve(result);
+    } catch (error) {
+      reject(error);
+    } finally {
+      this.processing = false;
+      if (this.queue.length > 0) {
+        console.log(`📋 ${this.queue.length} requests remaining in queue`);
+        // Process next request immediately
+        setImmediate(() => this.processQueue());
+      }
+    }
+  }
+
+  getStatus() {
+    return {
+      queueLength: this.queue.length,
+      requestsInLastMinute: this.requestTimes.length,
+      maxRequestsPerMinute: this.maxRequestsPerMinute,
+      estimatedWaitSeconds: this.queue.length * 20 // Rough estimate: ~20s per request
+    };
+  }
+}
+
+// Create queue instance for transcription requests
+const transcriptionQueue = new RequestQueue(3); // OpenAI Tier 1 limit
+
 app.use(cors());
 app.use(bodyParser.json());
 
@@ -67,6 +139,17 @@ app.get('/api/health', (req, res) => {
 });
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok' });
+});
+
+// Queue status endpoint - shows current state of rate limit queue
+app.get('/api/queue-status', (req, res) => {
+  const status = transcriptionQueue.getStatus();
+  res.json({
+    ...status,
+    message: status.queueLength > 0
+      ? `${status.queueLength} requests waiting. Estimated wait: ${status.estimatedWaitSeconds}s`
+      : 'No requests in queue'
+  });
 });
 
 // Privacy Policy endpoint - serves the current September 2025 version
@@ -267,15 +350,20 @@ app.post('/api/transcribe', upload.single('audio'), async (req, res) => {
       const tempFilePath = path.join(tempDir, `audio-${Date.now()}.${extension}`);
       fs.writeFileSync(tempFilePath, processingBuffer);
       
-      console.log(`Transcribing audio with language parameter: ${language}`);  
-      const transcript = await openai.audio.transcriptions.create({
-        file: fs.createReadStream(tempFilePath),
-        model: 'whisper-1',
-        language: language,
-        response_format: 'text'
-      }, {
-        signal: controller.signal,
-        timeout: timeoutMs
+      console.log(`Transcribing audio with language parameter: ${language}`);
+      console.log(`⏳ Adding transcription request to queue...`);
+
+      // Wrap OpenAI call in queue to respect rate limits
+      const transcript = await transcriptionQueue.add(async () => {
+        return await openai.audio.transcriptions.create({
+          file: fs.createReadStream(tempFilePath),
+          model: 'whisper-1',
+          language: language,
+          response_format: 'text'
+        }, {
+          signal: controller.signal,
+          timeout: timeoutMs
+        });
       });
       
       // Clean up the temp file
@@ -317,7 +405,11 @@ app.post('/api/transcribe', upload.single('audio'), async (req, res) => {
       if (apiError.status === 401) {
         return res.status(401).json({ error: 'API key is invalid or expired' });
       } else if (apiError.status === 429) {
-        return res.status(429).json({ error: 'Rate limit exceeded or insufficient quota' });
+        return res.status(429).json({
+          error: 'Rate limit exceeded or insufficient quota',
+          message: 'Too many users creating stories right now. Please wait 60 seconds and try again. The app shares AI resources globally.',
+          retryAfter: 60
+        });
       } else if (apiError.status === 400) {
         return res.status(400).json({ error: 'Bad request: ' + errorMessage });
       } else if (apiError.status === 500) {
