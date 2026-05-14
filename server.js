@@ -40,7 +40,6 @@ import cors from 'cors';
 import multer from 'multer';
 import bodyParser from 'body-parser';
 import { OpenAI } from 'openai';
-import Replicate from 'replicate';
 import axios from 'axios';
 import fs from 'fs';
 import path from 'path';
@@ -53,10 +52,6 @@ const upload = multer();
 // Initialize API clients
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
-});
-
-const replicate = new Replicate({
-  auth: process.env.REPLICATE_API_TOKEN,
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
