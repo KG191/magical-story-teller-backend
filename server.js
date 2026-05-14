@@ -45,6 +45,7 @@ import axios from 'axios';
 import fs from 'fs';
 import path from 'path';
 import { TextToSpeechClient } from '@google-cloud/text-to-speech';
+import { Storage } from '@google-cloud/storage';
 
 const app = express();
 const upload = multer();
@@ -57,6 +58,83 @@ const openai = new OpenAI({
 const replicate = new Replicate({
   auth: process.env.REPLICATE_API_TOKEN,
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Image generation configuration
+//
+// DALL-E 2 / DALL-E 3 were deprecated by OpenAI on May 12, 2026. We now use the
+// gpt-image-* family. Unlike DALL-E, these models return base64-encoded image
+// data (b64_json) rather than a temporary URL, so we persist each image to
+// Google Cloud Storage and hand the iOS app a stable public HTTPS URL.
+// ─────────────────────────────────────────────────────────────────────────────
+const IMAGE_MODEL = process.env.OPENAI_IMAGE_MODEL || 'gpt-image-1.5';
+const IMAGE_QUALITY = process.env.OPENAI_IMAGE_QUALITY || 'medium'; // low | medium | high | auto
+const IMAGE_SIZE = process.env.OPENAI_IMAGE_SIZE || '1024x1024';
+const GCS_IMAGE_BUCKET = process.env.GCS_IMAGE_BUCKET || '';
+
+// Lazily-initialized Google Cloud Storage client (reuses GOOGLE_APPLICATION_CREDENTIALS)
+let storageClient = null;
+function getStorageClient() {
+  if (!storageClient) {
+    storageClient = new Storage();
+  }
+  return storageClient;
+}
+
+/**
+ * Uploads a base64-encoded PNG to Google Cloud Storage and returns a public URL.
+ * gpt-image-* models return base64 only (no temporary URL like DALL-E did), so we
+ * must host each image ourselves and give the app a stable HTTPS URL it can load
+ * with AsyncImage / cache via PersistentImageCache.
+ */
+async function uploadImageToGCS(base64Data) {
+  if (!GCS_IMAGE_BUCKET) {
+    throw new Error('GCS_IMAGE_BUCKET environment variable is not configured');
+  }
+
+  const buffer = Buffer.from(base64Data, 'base64');
+  const objectName = `story-images/${Date.now()}-${Math.random().toString(36).slice(2, 10)}.png`;
+  const file = getStorageClient().bucket(GCS_IMAGE_BUCKET).file(objectName);
+
+  await file.save(buffer, {
+    resumable: false,
+    contentType: 'image/png',
+    metadata: { cacheControl: 'public, max-age=31536000' },
+  });
+
+  // Works when the bucket grants allUsers the Storage Object Viewer role
+  // (uniform bucket-level access). For buckets using fine-grained ACLs,
+  // makePublic() handles it; we ignore its failure under uniform access.
+  try {
+    await file.makePublic();
+  } catch (aclError) {
+    console.warn('makePublic() skipped (likely uniform bucket-level access):', aclError.message);
+  }
+
+  return `https://storage.googleapis.com/${GCS_IMAGE_BUCKET}/${objectName}`;
+}
+
+/**
+ * Generates a single illustration with the configured OpenAI image model and
+ * hosts it on GCS. Returns a public HTTPS URL. Throws on failure so callers can
+ * apply their own placeholder fallback.
+ */
+async function generateAndHostImage(prompt) {
+  const response = await openai.images.generate({
+    model: IMAGE_MODEL,
+    prompt,
+    size: IMAGE_SIZE,
+    quality: IMAGE_QUALITY,
+    n: 1,
+  });
+
+  const b64 = response && response.data && response.data[0] && response.data[0].b64_json;
+  if (!b64 || typeof b64 !== 'string') {
+    throw new Error('OpenAI image response contained no b64_json data');
+  }
+
+  return await uploadImageToGCS(b64);
+}
 
 // MARK: - Request Queue for Rate Limit Management
 // This queue prevents hitting OpenAI's rate limits by processing requests sequentially
@@ -500,39 +578,14 @@ Format your response as 5 separate paragraphs, each representing one frame of th
         const imagePrompt = generateStyledPrompt(cleanText, animationStyle, language);
         console.log(`🚀 Generating image for frame ${i+1}/${frames.length} with style ${animationStyle}: ${imagePrompt.substring(0, 50)}...`);
         
-        // Call our own image generation endpoint directly
+        // Generate the illustration with the configured OpenAI image model and host it on GCS
         try {
-          console.log('Generating image with DALL-E 3 for prompt:', imagePrompt.substring(0, 100) + '...');
-          
-          // Generate styled image using DALL-E 3 based on selected animation style
-          const response = await openai.images.generate({
-            model: "dall-e-3",
-            prompt: imagePrompt,
-            size: "1024x1024",
-            quality: "standard",
-            n: 1,
-            style: "vivid", // Vivid style works better for animated/illustrated looks
-          });
-          
-          // Extract the image URL from the response with better validation
-          const imageUrl = response.data && response.data[0] && response.data[0].url;
-          
-          if (imageUrl && typeof imageUrl === 'string') {
-            console.log(`✅ Image generated for frame ${i+1}: ${imageUrl.substring(0, 50)}...`);
-            return { index: i, imageURL: imageUrl }; // Return with index for correct assignment
-          } else {
-            console.warn(`No valid URL in DALL-E response for frame ${i+1}, using fallback image`);
-            
-            // Create a scene-specific fallback image
-            const sceneType = determineSceneType(cleanText);
-            const sceneTitle = sceneType.charAt(0).toUpperCase() + sceneType.slice(1);
-            let bgColor = "9C89B8"; // Default purple
-            
-            // Create a context-aware placeholder with text from the prompt
-            const safePrompt = encodeURIComponent(typeof cleanText === 'string' ? cleanText.substring(0, 60).trim() : 'Story Scene');
-            const placeholderUrl = `https://placehold.co/1024x1024/${bgColor}/FFFFFF?text=Ghibli+${sceneTitle}:+${safePrompt}`;
-            return { index: i, imageURL: placeholderUrl };
-          }
+          console.log(`Generating image with ${IMAGE_MODEL} for prompt:`, imagePrompt.substring(0, 100) + '...');
+
+          const imageUrl = await generateAndHostImage(imagePrompt);
+
+          console.log(`✅ Image generated for frame ${i+1}: ${imageUrl.substring(0, 50)}...`);
+          return { index: i, imageURL: imageUrl }; // Return with index for correct assignment
         } catch (imageGenError) {
           console.error(`Error generating image for frame ${i+1}:`, imageGenError);
           
@@ -546,7 +599,7 @@ Format your response as 5 separate paragraphs, each representing one frame of th
         // Handle content policy violations specifically
         if (imageError.code === 'content_policy_violation') {
           console.warn(`⚠️ Content policy violation for frame ${i+1}, using safe fallback image`);
-          return { index: i, imageURL: `https://via.placeholder.com/1024x1024/87CEEB/FFFFFF?text=Story+Frame+${i+1}` };
+          return { index: i, imageURL: `https://placehold.co/1024x1024/87CEEB/FFFFFF?text=Story+Frame+${i+1}` };
         }
         
         // Return fallback for any other error
@@ -604,61 +657,13 @@ app.post('/api/generate-image', async (req, res) => {
     const enhancedPrompt = generateStyledPrompt(promptText, animationStyle, language);
     
     try {
-      console.log('Generating image with DALL-E 3 for prompt:', enhancedPrompt.substring(0, 100) + '...');
-      
-      // Generate styled image using DALL-E 3
-      const response = await openai.images.generate({
-        model: "dall-e-3",
-        prompt: enhancedPrompt,
-        size: "1024x1024",
-        quality: "standard",
-        n: 1,
-        style: "vivid", // Vivid style works better for animated/illustrated looks
-      });
-      
-      // Log the full response structure for debugging
-      console.log('Full DALL-E response structure:', JSON.stringify(response, null, 2));
-      
-      // Extract the image URL from the response with better validation
-      const imageUrl = response.data && response.data[0] && response.data[0].url;
-      
-      // Log more detailed information about the response structure
-      console.log('Image URL type:', typeof imageUrl);
-      console.log('Image URL value:', imageUrl);
-      
-      // Verify we have a valid URL before returning success
-      if (!imageUrl || typeof imageUrl !== 'string') {
-        console.warn('No valid URL in DALL-E response, using fallback image');
-        
-        // Create a scene-specific fallback image
-        const sceneType = determineSceneType(promptText);
-        const sceneTitle = sceneType.charAt(0).toUpperCase() + sceneType.slice(1);
-        let bgColor;
-        
-        // Set colors based on scene type
-        switch(sceneType) {
-          case "forest": bgColor = "8BC34A"; break; // Green
-          case "sky": bgColor = "64B5F6"; break; // Blue
-          case "town": bgColor = "E57373"; break; // Red/pink
-          case "home": bgColor = "FFB74D"; break; // Orange
-          case "water": bgColor = "4DD0E1"; break; // Cyan
-          default: bgColor = "9C89B8"; // Purple for magical scenes
-        }
-        
-        // Create a context-aware placeholder with text from the prompt
-        const safePrompt = encodeURIComponent(typeof promptText === 'string' ? promptText.substring(0, 60).trim() : 'Story Scene');
-        const placeholderUrl = `https://placehold.co/1024x1024/${bgColor}/FFFFFF?text=Ghibli+${sceneTitle}:+${safePrompt}`;
-        
-        return res.json({ 
-          imageUrl: placeholderUrl,
-          success: false,
-          message: "Generated fallback image - OpenAI didn't return a valid URL" 
-        });
-      }
-      
-      // Log success for monitoring
-      console.log('Successfully generated DALL-E image. URL starts with:', imageUrl.substring(0, 30) + '...');
-      
+      console.log(`Generating image with ${IMAGE_MODEL} for prompt:`, enhancedPrompt.substring(0, 100) + '...');
+
+      // Generate the styled image and host it on GCS, returning a stable public URL
+      const imageUrl = await generateAndHostImage(enhancedPrompt);
+
+      console.log('Successfully generated image. Hosted at:', imageUrl);
+
       // CRITICAL FIX: Return ONLY the image URL as a string, not an object
       // This matches what the client code expects from storyService.ts
       return res.json(imageUrl);
@@ -698,7 +703,7 @@ app.post('/api/generate-image', async (req, res) => {
     if (error.code === 'content_policy_violation') {
       console.warn('⚠️ Content policy violation, returning safe fallback image');
       return res.json({ 
-        imageUrl: 'https://via.placeholder.com/1024x1024/87CEEB/FFFFFF?text=Safe+Story+Image',
+        imageUrl: 'https://placehold.co/1024x1024/87CEEB/FFFFFF?text=Safe+Story+Image',
         success: false,
         message: 'Content filtered - using safe fallback image' 
       });
